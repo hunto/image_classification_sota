@@ -3,7 +3,8 @@
 `Image Classification SOTA` is an image classification toolbox based on PyTorch.
 
 ## Updates  
-
+### March 11, 2022  
+* Release training code.
 
 ## Requirements
 ```
@@ -62,7 +63,7 @@ image_classification_sota
 
 * Train VGG-16 on CIFAR-10
     ```shell
-    sh tools/dist_train.sh 8 configs/strategies/CIFAR/cifar.yaml nas_model --model-config configs/models/VGG/vgg16_cifar10.yaml --experiment cifar10_vgg16
+    sh tools/dist_train.sh 1 configs/strategies/CIFAR/cifar.yaml nas_model --model-config configs/models/VGG/vgg16_cifar10.yaml --experiment cifar10_vgg16
     ```
 
 ## Projects based on Image Classification SOTA  
