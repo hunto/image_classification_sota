@@ -2,6 +2,9 @@
 
 `Image Classification SOTA` is an image classification toolbox based on PyTorch.
 
+## Updates  
+
+
 ## Requirements
 ```
 torch>=1.0.1
@@ -10,7 +13,7 @@ torchvision
 
 ## Getting Started  
 ### Prepare datasets  
-It is recommended to symlink the dataset root to `image_classification_sota/data`. Then the file structure would be like  
+It is recommended to symlink the dataset root to `image_classification_sota/data`. Then the file structure should be like  
 ```
 image_classification_sota
 ├── lib
@@ -61,3 +64,6 @@ image_classification_sota
     ```shell
     sh tools/dist_train.sh 8 configs/strategies/CIFAR/cifar.yaml nas_model --model-config configs/models/VGG/vgg16_cifar10.yaml --experiment cifar10_vgg16
     ```
+
+## Projects based on Image Classification SOTA  
+* [DyRep](https://github.com/hunto/DyRep): Bootstrapping Training with Dynamic Re-parameterization
