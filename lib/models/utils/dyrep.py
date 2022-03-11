@@ -78,8 +78,6 @@ class DyRep(object):
                 metric_val = (grad * weight).abs().sum().item()
             elif self.grow_metric == 'synflow':
                 metric_val = (grad * weight).sum().item()
-                #metric_val = ((grad * weight).mean() / weight.std()).item()
-                #metric_val = grad.sum().item()
             elif self.grow_metric == 'random':
                 metric_val = random.random()
 
@@ -151,7 +149,7 @@ class DyRep(object):
     def _reset_optimizer(self):
         param_groups = get_params(self.model, lr=0.1, weight_decay=1e-5, filter_bias_and_bn=self.filter_bias_and_bn, sort_params=True)
 
-        # remove states of removed paramters
+        # remove the states of removed paramters
         assert len(param_groups) == len(self.optimizer.param_groups)
         for param_group, param_group_old in zip(param_groups, self.optimizer.param_groups):
             params, params_old = param_group['params'], param_group_old['params']

@@ -8,50 +8,6 @@ from .dbb_transforms import (transI_fusebn, transII_addbranch,
                              transV_avg, transIX_bn_to_1x1)
 
 
-class DynamicBN(nn.BatchNorm2d):
-    def __init__(self,
-                 num_features,
-                 eps=1e-5,
-                 max_momentum=0.1,
-                 affine=True,
-                 track_running_stats=True,
-                 min_momentum=1e-5,
-                 warmup_iters=1000):
-        super(DynamicBN, self).__init__(num_features, eps, min_momentum,
-                                        affine, track_running_stats)
-        self._running_mean = nn.Parameter(torch.zeros(num_features),
-                                          requires_grad=False)
-        self._running_var = nn.Parameter(torch.ones(num_features),
-                                         requires_grad=False)
-        self._iter_cnt = 0
-        self._min_momentum = min_momentum
-        self._k = (max_momentum -
-                   min_momentum) / warmup_iters if warmup_iters != 0 else 0
-        self._warmup_iters = warmup_iters
-
-    def forward(self, input):
-        if self._iter_cnt >= self._warmup_iters or not self.training:
-            return super().forward(input)
-        output = (input - self.running_mean.view(1, -1, 1, 1)) \
-            * self.weight.view(1, -1, 1, 1) \
-            / (self.running_var.view(1, -1, 1, 1) + self.eps).sqrt() \
-            + self.bias.view(1, -1, 1, 1)
-        self._running_mean.data = self.running_mean.data.clone()
-        self._running_var.data = self.running_var.data.clone()
-        super().forward(input)
-        if self._iter_cnt < self._warmup_iters:
-            self._iter_cnt += 1
-            self.momentum = self._min_momentum + self._k * self._iter_cnt
-        return output
-
-    def reset_parameters(self):
-        super().reset_parameters()
-        if hasattr(self, '_running_mean'):
-            self._running_mean.zero_()
-        if hasattr(self, '_running_var'):
-            self._running_var.fill_(1.0)
-
-
 class ConvBN(nn.Module):
     def __init__(self,
                  in_channels,
@@ -373,7 +329,6 @@ class DiverseBranchBlock(nn.Module):
             self.dbb_kxk.conv.bias.data = new_b
         elif isinstance(self.dbb_kxk.conv, DiverseBranchBlock):
             self.dbb_kxk.conv._reset_dbb(new_w, new_b)
-        #self.recal_bn_fn(self)
 
     def _init_branch(self, branch, set_zero=False, norm=0.01):
         bns = []
