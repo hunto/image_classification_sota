@@ -6,6 +6,20 @@
 ### March 11, 2022  
 * Release training code.
 
+## Supported Algorithms  
+### Structural Re-parameterization (Rep)  
+* DBB (CVPR 2021) [[paper]](https://arxiv.org/abs/2103.13425) [[original repo]](https://github.com/DingXiaoH/DiverseBranchBlock)
+* DyRep (CVPR 2022) [[README]](https://github.com/hunto/DyRep)
+
+### Knowledge Distillation (KD)  
+Coming soon.
+
+### Neural Architecture Search (NAS)  
+Coming soon.
+
+### Channel Pruning  
+Coming soon.
+
 ## Requirements
 ```
 torch>=1.0.1
