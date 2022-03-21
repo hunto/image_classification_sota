@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class CrossEntropyLabelSmooth(nn.Module):
@@ -17,3 +18,14 @@ class CrossEntropyLabelSmooth(nn.Module):
         loss = (-targets * log_probs).mean(0).sum()
         return loss
 
+
+class SoftTargetCrossEntropy(nn.Module):
+
+    def __init__(self):
+        super(SoftTargetCrossEntropy, self).__init__()
+
+    def forward(self, x: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        if target.dtype == torch.int64:
+            target = F.one_hot(target, x.shape[-1]).float()
+        loss = torch.sum(-target * F.log_softmax(x, dim=-1), dim=-1)
+        return loss.mean()

@@ -3,6 +3,9 @@
 `Image Classification SOTA` is an image classification toolbox based on PyTorch.
 
 ## Updates  
+### March 24, 2022  
+* Support training strategies in DeiT (ViT).
+
 ### March 11, 2022  
 * Release training code.
 

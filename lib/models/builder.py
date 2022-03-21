@@ -46,7 +46,7 @@ def build_model(args):
     elif args.model.startswith('timm_'):
         # build model using timm
         import timm
-        model = timm.create_model(args.model[5:], pretrained=False)
+        model = timm.create_model(args.model[5:], pretrained=False, drop_path_rate=args.drop_path_rate)
 
     else:
         raise RuntimeError(f'Model {args.model} not found.')

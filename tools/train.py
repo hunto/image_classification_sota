@@ -8,8 +8,8 @@ import numpy as np
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 from lib.models.builder import build_model
-from lib.models.losses.cross_entropy_label_smooth \
-    import CrossEntropyLabelSmooth
+from lib.models.losses import CrossEntropyLabelSmooth, \
+    SoftTargetCrossEntropy
 from lib.dataset.builder import build_dataloader
 from lib.utils.optim import build_optimizer
 from lib.utils.scheduler import build_scheduler
@@ -55,13 +55,16 @@ def main():
         build_dataloader(args)
 
     '''build model'''
-    if args.smoothing == 0.:
+    if args.mixup > 0. or args.cutmix > 0 or args.cutmix_minmax is not None:
+        loss_fn = SoftTargetCrossEntropy()
+    elif args.smoothing == 0.:
         loss_fn = nn.CrossEntropyLoss().cuda()
     else:
         loss_fn = CrossEntropyLabelSmooth(num_classes=args.num_classes,
                                           epsilon=args.smoothing).cuda()
 
     model = build_model(args)
+    logger.info(model)
     logger.info(
         f'Model {args.model} created, params: {get_params(model)}, '
         f'FLOPs: {get_flops(model, input_shape=args.input_shape)}')
@@ -88,7 +91,7 @@ def main():
 
     '''build optimizer'''
     optimizer = build_optimizer(args.opt,
-                                model,
+                                model.module,
                                 args.lr,
                                 eps=args.opt_eps,
                                 momentum=args.momentum,
@@ -139,6 +142,8 @@ def main():
 
     if args.resume:
         start_epoch = ckpt_manager.load(args.resume) + 1
+        if start_epoch > args.warmup_epochs:
+            scheduler.finished = True
         scheduler.step(start_epoch * len(train_loader))
         if args.dyrep:
             model = DDP(model.module,
@@ -255,7 +260,7 @@ def train_epoch(args,
         if batch_idx % args.log_interval == 0 or batch_idx == len(loader) - 1:
             logger.info('Train: {} [{:>4d}/{}] '
                         'Loss: {loss.val:.3f} ({loss.avg:.3f}) '
-                        'LR: {lr:.6f} '
+                        'LR: {lr:.3e} '
                         'Time: {batch_time.val:.2f}s ({batch_time.avg:.2f}s) '
                         'Data: {data_time.val:.2f}s'.format(
                             epoch,

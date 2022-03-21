@@ -587,7 +587,7 @@ class RandomResizedCropAndInterpolation:
         interpolation: Default: PIL.Image.BILINEAR
     """
 
-    def __init__(self, size, scale=(0.08, 1.0), ratio=(3. / 4., 4. / 3.)):
+    def __init__(self, size, scale=(0.08, 1.0), ratio=(3. / 4., 4. / 3.), interpolation='bilinear'):
         if isinstance(size, tuple):
             self.size = size
         else:
@@ -597,6 +597,11 @@ class RandomResizedCropAndInterpolation:
 
         self.scale = scale
         self.ratio = ratio
+
+        if interpolation == 'bilinear':
+            self.interpolation = Image.BILINEAR
+        elif interpolation == 'bicubic':
+            self.interpolation = Image.BICUBIC
 
     @staticmethod
     def get_params(img, scale, ratio):
@@ -650,7 +655,7 @@ class RandomResizedCropAndInterpolation:
             PIL Image: Randomly cropped and resized image.
         """
         i, j, h, w = self.get_params(img, self.scale, self.ratio)
-        return F.resized_crop(img, i, j, h, w, self.size)
+        return F.resized_crop(img, i, j, h, w, self.size, interpolation=self.interpolation)
 
 
 class RandomErasing:

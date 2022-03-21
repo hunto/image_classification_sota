@@ -9,6 +9,12 @@ def get_params(model, ignore_auxiliary_head=True):
     return params
 
 def get_flops(model, input_shape=(3, 224, 224)):
+    if hasattr(model, 'flops'):
+        return model.flops(input_shape)
+    else:
+        return get_flops_hook(model, input_shape)
+
+def get_flops_hook(model, input_shape=(3, 224, 224)):
     is_training = model.training
     list_conv = []
 

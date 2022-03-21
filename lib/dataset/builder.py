@@ -4,6 +4,7 @@ import torchvision.datasets as datasets
 
 from .dataset import ImageNetDataset
 from .dataloader import fast_collate, DataPrefetcher
+from .mixup import Mixup
 from . import transform
 
 
@@ -24,7 +25,7 @@ def build_dataloader(args):
 
     # train
     if args.dataset == 'imagenet':
-        train_transforms_l, train_transforms_r = transform.build_train_transforms(args.aa, args.color_jitter, args.reprob, args.remode)
+        train_transforms_l, train_transforms_r = transform.build_train_transforms(args.aa, args.color_jitter, args.reprob, args.remode, args.interpolation)
         train_dataset = ImageNetDataset(os.path.join(args.data_path, 'train'), os.path.join(args.data_path, 'meta/train.txt'), transform=train_transforms_l)
     elif args.dataset == 'cifar10':
         train_transforms_l, train_transforms_r = transform.build_train_transforms_cifar10(args.cutout_length)
@@ -33,15 +34,23 @@ def build_dataloader(args):
         train_transforms_l, train_transforms_r = transform.build_train_transforms_cifar10(args.cutout_length)
         train_dataset = datasets.CIFAR100(root=args.data_path, train=True, download=True, transform=train_transforms_l)
 
+    # mixup
+    mixup_active = args.mixup > 0. or args.cutmix > 0. or args.cutmix_minmax is not None
+    if mixup_active:
+        mixup_transform = Mixup(mixup_alpha=args.mixup, cutmix_alpha=args.cutmix, cutmix_minmax=args.cutmix_minmax, prob=args.mixup_prob,
+                                switch_prob=args.mixup_switch_prob, mode=args.mixup_mode, label_smoothing=args.smoothing, num_classes=args.num_classes)
+    else:
+        mixup_transform = None
+
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, shuffle=True)
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.workers, 
-        pin_memory=False, sampler=train_sampler, collate_fn=fast_collate)
-    train_loader = DataPrefetcher(train_loader, train_transforms_r)
+        pin_memory=False, sampler=train_sampler, collate_fn=fast_collate, drop_last=True)
+    train_loader = DataPrefetcher(train_loader, train_transforms_r, mixup_transform)
 
     # val
     if args.dataset == 'imagenet':
-        val_transforms_l, val_transforms_r = transform.build_val_transforms()
+        val_transforms_l, val_transforms_r = transform.build_val_transforms(args.interpolation)
         val_dataset = ImageNetDataset(os.path.join(args.data_path, 'val'), os.path.join(args.data_path, 'meta/val.txt'), transform=val_transforms_l)
     elif args.dataset == 'cifar10':
         val_transforms_l, val_transforms_r = transform.build_val_transforms_cifar10()

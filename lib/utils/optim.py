@@ -1,5 +1,5 @@
 import torch
-from torch.optim import Optimizer
+import torch.optim as optim
 
 
 def build_optimizer(opt, model, lr, eps=1e-10, momentum=0.9, weight_decay=1e-5, filter_bias_and_bn=True, nesterov=True, sort_params=False):
@@ -8,11 +8,13 @@ def build_optimizer(opt, model, lr, eps=1e-10, momentum=0.9, weight_decay=1e-5, 
     params = get_params(model, lr, weight_decay, filter_bias_and_bn, sort_params=sort_params)
 
     if opt == 'rmsprop':
-        optimizer = torch.optim.RMSprop(params, lr, eps=eps, weight_decay=weight_decay, momentum=momentum)
+        optimizer = optim.RMSprop(params, lr, eps=eps, weight_decay=weight_decay, momentum=momentum)
     elif opt == 'rmsproptf':
         optimizer = RMSpropTF(params, lr, eps=eps, weight_decay=weight_decay, momentum=momentum)
     elif opt == 'sgd':
-        optimizer = torch.optim.SGD(params, lr, momentum=momentum, weight_decay=weight_decay, nesterov=nesterov)
+        optimizer = optim.SGD(params, lr, momentum=momentum, weight_decay=weight_decay, nesterov=nesterov)
+    elif opt == 'adamw':
+        optimizer = optim.AdamW(params, lr, eps=eps, weight_decay=weight_decay)
     else:
         raise NotImplementedError(f'Optimizer {opt} not implemented.')
     return optimizer
@@ -20,7 +22,12 @@ def build_optimizer(opt, model, lr, eps=1e-10, momentum=0.9, weight_decay=1e-5, 
 
 def get_params(model, lr, weight_decay=1e-5, filter_bias_and_bn=True, sort_params=False):
     if weight_decay != 0 and filter_bias_and_bn:
-        params = _add_weight_decay(model, lr, weight_decay, sort_params=sort_params)
+        if hasattr(model, 'no_weight_decay'):
+            skip_list = model.no_weight_decay()
+            print(f'no weight decay: {skip_list}')
+        else:
+            skip_list = ()
+        params = _add_weight_decay(model, lr, weight_decay, skip_list=skip_list, sort_params=sort_params)
         weight_decay = 0
     else:
         named_params = list(model.named_parameters())
@@ -49,7 +56,7 @@ def _add_weight_decay(model, lr, weight_decay=1e-5, skip_list=(), sort_params=Fa
         {'params': decay, 'weight_decay': weight_decay, 'initial_lr': lr}]
 
 
-class RMSpropTF(Optimizer):
+class RMSpropTF(optim.Optimizer):
     """Implements RMSprop algorithm (TensorFlow style epsilon)
     NOTE: This is a direct cut-and-paste of PyTorch RMSprop with eps applied before sqrt
     and a few other modifications to closer match Tensorflow for matching hyper-params.

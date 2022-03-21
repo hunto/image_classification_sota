@@ -4,6 +4,8 @@ import torch
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 
+import logging
+logger = logging.getLogger()
 
 def accuracy(output, target, topk=(1,)):
     """Computes the accuracy over the k top predictions for the specified values of k"""
@@ -127,9 +129,16 @@ class CheckpointManager():
                 self.additions[key] = save_dict[key]
 
         if isinstance(self.model, DDP):
-            self.model.module.load_state_dict(save_dict['model'])
+            missing_keys, unexpected_keys = \
+                self.model.module.load_state_dict(save_dict['model'])
         else:
-            self.model.load_state_dict(save_dict['model'])
+            missing_keys, unexpected_keys = \
+                self.model.load_state_dict(save_dict['model'])
+        if len(missing_keys) != 0:
+            logger.info(f'Missing keys in source state dict: {missing_keys}')
+        if len(unexpected_keys) != 0:
+            logger.info(f'Unexpected keys in source state dict: {unexpected_keys}')
+        
         if self.ema_model is not None:
             self.ema_model.load_state_dict(save_dict['ema_model'])
         if self.optimizer is not None:

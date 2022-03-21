@@ -68,8 +68,10 @@ parser.add_argument('--decay_by_epoch', action='store_true', default=False,
                     help='decay LR by epoch, valid only for cosine scheduler')
 
 # Augmentation & regularization parameters
-parser.add_argument('--color-jitter', type=float, default=0.4,
-                    help='Color jitter factor (default: 0.4)')
+parser.add_argument('--interpolation', type=str, default='bilinear', choices=['bilinear', 'bicubic'],
+                    help='Interpolation mode in image resize')
+parser.add_argument('--color-jitter', type=float, default=0.,
+                    help='Color jitter factor (default: 0.)')
 parser.add_argument('--cutout-length', type=int, default=0,
                     help='Cutout length. Only used in CIFAR transforms')
 parser.add_argument('--aa', type=str, default=None,
@@ -84,6 +86,20 @@ parser.add_argument('--drop-path-rate', type=float, default=0.,
                     help='Drop path rate, (default: 0.)')
 parser.add_argument('--drop-path-strategy', type=str, default='const', choices=['const', 'linear'],
                     help='Drop path rate update strategy, default: const')
+
+# Mixup
+parser.add_argument('--mixup', type=float, default=0.,
+                    help='mixup alpha, mixup enabled if > 0. (default: 0.8)')
+parser.add_argument('--cutmix', type=float, default=0.,
+                    help='cutmix alpha, cutmix enabled if > 0. (default: 1.0)')
+parser.add_argument('--cutmix-minmax', type=float, nargs='+', default=None,
+                    help='cutmix min/max ratio, overrides alpha and enables cutmix if set (default: None)')
+parser.add_argument('--mixup-prob', type=float, default=1.0,
+                    help='Probability of performing mixup or cutmix when either/both is enabled')
+parser.add_argument('--mixup-switch-prob', type=float, default=0.5,
+                    help='Probability of switching to cutmix when both mixup and cutmix enabled')
+parser.add_argument('--mixup-mode', type=str, default='batch',
+                    help='How to apply mixup/cutmix params. Per "batch", "pair", or "elem"')
 
 # Model Exponential Moving Average
 parser.add_argument('--model-ema', action='store_true', default=False,

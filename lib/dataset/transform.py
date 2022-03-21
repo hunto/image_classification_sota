@@ -11,17 +11,25 @@ CIFAR_DEFAULT_MEAN = (0.49139968, 0.48215827, 0.44653124)
 CIFAR_DEFAULT_STD = (0.24703233, 0.24348505, 0.26158768)
 
 
-def build_train_transforms(aa_config_str="rand-m9-mstd0.5", color_jitter=None, reprob=0., remode='pixel'):
+def build_train_transforms(aa_config_str="rand-m9-mstd0.5", color_jitter=None, 
+                           reprob=0., remode='pixel', interpolation='bilinear'):
     trans_l = []
     trans_r = []
     trans_l.extend([
-                augment_ops.RandomResizedCropAndInterpolation(224),
+                augment_ops.RandomResizedCropAndInterpolation(224, interpolation=interpolation),
                 transforms.RandomHorizontalFlip()])
     if aa_config_str is not None and aa_config_str != '':
+        if interpolation == 'bilinear':
+           aa_interpolation = Image.BILINEAR
+        elif interpolation == 'bicubic':
+           aa_interpolation = Image.BICUBIC
+        else:
+           raise RuntimeError(f'Interpolation mode {interpolation} not found.')
+
         aa_params = dict(
             translate_const=int(224 * 0.45),
             img_mean=tuple([round(x * 255) for x in IMAGENET_DEFAULT_MEAN]),
-            interpolation=Image.BILINEAR
+            interpolation=aa_interpolation
         )
         trans_l.append(augment_ops.rand_augment_transform(aa_config_str, aa_params))
     elif color_jitter != 0 and color_jitter is not None:
@@ -36,9 +44,16 @@ def build_train_transforms(aa_config_str="rand-m9-mstd0.5", color_jitter=None, r
     return transforms.Compose(trans_l), transforms.Compose(trans_r)
     
 
-def build_val_transforms():
+def build_val_transforms(interpolation='bilinear'):
+    if interpolation == 'bilinear':
+        interpolation = Image.BILINEAR
+    elif interpolation == 'bicubic':
+        interpolation = Image.BICUBIC
+    else:
+       raise RuntimeError(f'Interpolation mode {interpolation} not found.')
+
     trans_l = transforms.Compose([
-                  transforms.Resize(256),
+                  transforms.Resize(256, interpolation=interpolation),
                   transforms.CenterCrop(224),
                   augment_ops.ToNumpy()
               ])

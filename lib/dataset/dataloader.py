@@ -17,10 +17,11 @@ def fast_collate(batch, memory_format=torch.contiguous_format):
 
 
 class DataPrefetcher():
-    def __init__(self, loader, transforms):
+    def __init__(self, loader, transforms, mixup_transform=None):
         self.loader = loader
         self.loader_iter = iter(loader)
         self.transforms = transforms
+        self.mixup_transform = mixup_transform
         self.stream = torch.cuda.Stream()
 
     def preload(self):
@@ -41,6 +42,9 @@ class DataPrefetcher():
             self.next_input = self.next_input.cuda(non_blocking=True)
             self.next_target = self.next_target.cuda(non_blocking=True)
             self.next_input = self.transforms(self.next_input.float())
+            if self.mixup_transform is not None:
+                self.next_input, self.next_target = \
+                    self.mixup_transform(self.next_input, self.next_target)
 
     def next(self):
         torch.cuda.current_stream().wait_stream(self.stream)
