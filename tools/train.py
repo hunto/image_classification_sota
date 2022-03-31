@@ -246,13 +246,14 @@ def train_epoch(args,
         if args.clip_grad_norm:
             torch.nn.utils.clip_grad_norm_(model.parameters(),
                                            args.clip_grad_max_norm)
-        optimizer.step()
-        if model_ema is not None:
-            model_ema.update(model)
 
         if dyrep is not None:
             # record states of model in dyrep
             dyrep.record_metrics()
+            
+        optimizer.step()
+        if model_ema is not None:
+            model_ema.update(model)
 
         loss_m.update(loss.item(), n=input.size(0))
         batch_time = time.time() - start_time
