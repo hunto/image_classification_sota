@@ -92,14 +92,15 @@ class DyRep(object):
             conv_to_grow = metric_records_sorted[i][0]
             logger.info('grow: {}'.format(conv_to_grow))
             len_parent_str = conv_to_grow.rfind('.')
-            parent = conv_to_grow[:len_parent_str]
-            conv_key = conv_to_grow[len_parent_str + 1:]
-            # get the target conv module and its parent
-            parent_m = self._get_module(parent)
+            if len_parent_str != -1:
+                parent = conv_to_grow[:len_parent_str]
+                conv_key = conv_to_grow[len_parent_str + 1:]
+                # get the target conv module and its parent
+                parent_m = self._get_module(parent)
+            else:
+                conv_key = conv_to_grow
+                parent_m = self.model
             conv_m = getattr(parent_m, conv_key, None)
-            if conv_m is None:
-                warnings.warn(f'Module {conv_key} not found, skip.')
-                continue
             # replace target conv module with DBB
             conv_m_padding = conv_m.padding[0]
             conv_m_kernel_size = conv_m.kernel_size[0]
