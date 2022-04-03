@@ -30,7 +30,7 @@ warmup_lr: 0.2
 weight_decay: 1.0e-04
 workers: 4
 # dyrep
-dyrep: True
+dyrep: False
 dyrep_adjust_interval: 5
 dyrep_recal_bn_every_epoch: False
 dyrep_max_adjust_epochs: 100
