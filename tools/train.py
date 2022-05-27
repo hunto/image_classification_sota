@@ -62,8 +62,9 @@ def main():
     else:
         loss_fn = CrossEntropyLabelSmooth(num_classes=args.num_classes,
                                           epsilon=args.smoothing).cuda()
+    val_loss_fn = loss_fn
 
-    model = build_model(args)
+    model = build_model(args, args.model)
     logger.info(model)
     logger.info(
         f'Model {args.model} created, params: {get_params(model)}, '
@@ -83,6 +84,22 @@ def main():
     model = DDP(model,
                 device_ids=[args.local_rank],
                 find_unused_parameters=False)
+
+    # knowledge distillation
+    if args.kd != '':
+        # build teacher model
+        teacher_model = build_model(args, args.teacher_model, args.teacher_pretrained, args.teacher_ckpt)
+        logger.info(
+            f'Teacher model {args.teacher_model} created, params: {get_params(teacher_model)}, '
+            f'FLOPs: {get_flops(teacher_model, input_shape=args.input_shape)}')
+        teacher_model.cuda()
+        test_metrics = validate(args, 0, teacher_model, val_loader, val_loss_fn, log_suffix=' (teacher)')
+        logger.info(f'Top-1 accuracy of teacher model {args.teacher_model}: {test_metrics["top1"]:.2f}')
+
+        # build kd loss
+        from lib.models.losses.kd_loss import KDLoss
+        loss_fn = KDLoss(model, teacher_model, loss_fn, args.kd, args.student_module,
+                         args.teacher_module, args.ori_loss_weight, args.kd_loss_weight)
 
     if args.model_ema:
         model_ema = ModelEMA(model, decay=args.model_ema_decay)
@@ -178,7 +195,7 @@ def main():
                               dyrep)
 
         # validate
-        test_metrics = validate(args, epoch, model, val_loader, loss_fn)
+        test_metrics = validate(args, epoch, model, val_loader, val_loss_fn)
         if model_ema is not None:
             test_metrics = validate(args,
                                     epoch,
@@ -195,17 +212,17 @@ def main():
                     logger.info('DyRep: adjust model.')
                     dyrep.adjust_model()
                     logger.info(
-                        f'Model params: {get_params(model)}, FLOPs: {get_flops(model, input_shape=args.input_shape)}'
+                        f'Model params: {get_params(model)/1e6:.3f} M, FLOPs: {get_flops(model, input_shape=args.input_shape)/1e9:.3f} G'
                     )
                     # re-init DDP
                     model = DDP(model.module,
                                 device_ids=[args.local_rank],
                                 find_unused_parameters=True)
-                    test_metrics = validate(args, epoch, model, val_loader, loss_fn)
+                    test_metrics = validate(args, epoch, model, val_loader, val_loss_fn)
                 elif args.dyrep_recal_bn_every_epoch:
                     logger.info('DyRep: recalibrate BN.')
                     recal_bn(model.module, train_loader, 200)
-                    test_metrics = validate(args, epoch, model, val_loader, loss_fn)
+                    test_metrics = validate(args, epoch, model, val_loader, val_loss_fn)
 
         metrics.update(test_metrics)
         ckpts = ckpt_manager.update(epoch, metrics)
@@ -234,9 +251,16 @@ def train_epoch(args,
         data_time = time.time() - start_time
         data_time_m.update(data_time)
 
-        optimizer.zero_grad()
-        output = model(input)
-        loss = loss_fn(output, target)
+        # optimizer.zero_grad()
+        # use optimizer.zero_grad(set_to_none=False) for speedup
+        for p in model.parameters():
+            p.grad = None
+
+        if not args.kd:
+            output = model(input)
+            loss = loss_fn(output, target)
+        else:
+            loss = loss_fn(input, target)
 
         if auxiliary_buffer is not None:
             loss_aux = loss_fn(auxiliary_buffer.output, target)

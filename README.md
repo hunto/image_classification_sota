@@ -3,6 +3,9 @@
 `Image Classification SOTA` is an image classification toolbox based on PyTorch.
 
 ## Updates  
+### May 27, 2022  
+* Add knowledge distillation methods (KD and [DIST](https://github.com/hunto/DIST_KD)).  
+
 ### March 24, 2022  
 * Support training strategies in DeiT (ViT).
 
@@ -15,13 +18,8 @@
 * DyRep (CVPR 2022) [[README]](https://github.com/hunto/DyRep)
 
 ### Knowledge Distillation (KD)  
-Coming soon.
-
-### Neural Architecture Search (NAS)  
-Coming soon.
-
-### Channel Pruning  
-Coming soon.
+* KD [[paper]](https://arxiv.org/abs/1503.02531)  
+* DIST [[README]](https://github.com/hunto/DIST_KD) [[paper]](https://arxiv.org/abs/2205.10536)  
 
 ## Requirements
 ```

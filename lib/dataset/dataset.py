@@ -6,6 +6,7 @@ from torch.utils.data import Dataset
 
 try:
     import mc
+    from .file_io import PetrelMCBackend
     _has_mc = True
 except ModuleNotFoundError:
     warnings.warn('mc module not found, using original '
@@ -26,6 +27,11 @@ class ImageNetDataset(Dataset):
     """
     def __init__(self, root, meta_file, transform=None):
         self.root = root
+        if _has_mc:
+            with open('./data/mc_prefix.txt', 'r') as f:
+                prefix = f.readline().strip()
+            self.root = prefix + '/' + \
+                ('train' if 'train' in self.root else 'val')
         self.transform = transform
         with open(meta_file) as f:
             meta_list = f.readlines()
@@ -41,11 +47,14 @@ class ImageNetDataset(Dataset):
 
     def _init_memcached(self):
         if not self._mc_initialized:
+            '''
             server_list_config_file = "/mnt/lustre/share/memcached_client/server_list.conf"
             client_config_file = "/mnt/lustre/share/memcached_client/client.conf"
             self.mclient = mc.MemcachedClient.GetInstance(
                 server_list_config_file, client_config_file)
             self._mc_initialized = True
+            '''
+            self.backend = PetrelMCBackend()
 
     def __getitem__(self, index):
         filename = self.root + '/' + self.metas[index][0]
@@ -54,10 +63,13 @@ class ImageNetDataset(Dataset):
         if _has_mc:
             # memcached
             self._init_memcached()
+            '''
             value = mc.pyvector()
             self.mclient.Get(filename, value)
             value_buf = mc.ConvertBuffer(value)
             buff = io.BytesIO(value_buf)
+            '''
+            buff = self.backend.get(filename)
             with Image.open(buff) as img:
                 img = img.convert('RGB')
         else:
