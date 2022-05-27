@@ -18,8 +18,8 @@
 * DyRep (CVPR 2022) [[README]](https://github.com/hunto/DyRep)
 
 ### Knowledge Distillation (KD)  
-* [KD](https://arxiv.org/abs/1503.02531)  
-* [DIST](https://arxiv.org/abs/2205.10536)  
+* KD [[paper]](https://arxiv.org/abs/1503.02531)  
+* DIST [[README]](https://github.com/hunto/DIST_KD) [[paper]](https://arxiv.org/abs/2205.10536)  
 
 ## Requirements
 ```
