@@ -16,8 +16,8 @@ parser.add_argument('--data-path', default='', type=str,
                     help='Path to load dataset')
 parser.add_argument('--model', default='nas_model', type=str,
                     help='Name of model to train (default: "countception"')
-parser.add_argument('--model-config', type=str, default='config/models/GreedyNAS-B.yaml',
-                    help='path to net config')
+parser.add_argument('--model-config', type=str, default='',
+                    help='Path to net config. Used for NAS model.')
 parser.add_argument('--resume', default='', type=str,
                     help='Resume the states of model, optimizer, etc. in a checkpoint file')
 parser.add_argument('-b', '--batch-size', type=int, default=32,
@@ -122,6 +122,26 @@ parser.add_argument('--local-rank', default=0, type=int,
                     help='local rank of current process in distributed running')
 parser.add_argument('--dist-port', default='12345', type=str,
                     help='port for distributed communication')
+
+# KD
+parser.add_argument('--kd', type=str, default='',
+                    help='Knowledge distillation method. Default: disable')
+parser.add_argument('--teacher-model', type=str, default='',
+                    help='teacher model name')
+parser.add_argument('--teacher-pretrained', action='store_true',
+                    help='load pretrained model of teacher')
+parser.add_argument('--teacher-no-pretrained', action='store_false', dest='teacher_pretrained')
+parser.set_defaults(teacher_pretrained=True)
+parser.add_argument('--teacher-ckpt', type=str, default='',
+                    help='path to the ckpt of teacher model')
+parser.add_argument('--kd-loss-weight', type=float, default=1., 
+                    help='weight of kd loss')
+parser.add_argument('--ori-loss-weight', type=float, default=1., 
+                    help='weight of original loss')
+parser.add_argument('--teacher-module', type=str, default='',
+                    help='name of the teacher module used in kd. Default (""): use the output of model.')
+parser.add_argument('--student-module', type=str, default='',
+                    help='name of the student module used in kd. Default (""): use the output of model.')
 
 # DBB
 parser.add_argument('--dbb', action='store_true', default=False,
