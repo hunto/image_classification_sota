@@ -128,22 +128,28 @@ class CheckpointManager():
             else:
                 self.additions[key] = save_dict[key]
 
+        if 'state_dict' in save_dict and 'model' not in save_dict:
+            save_dict['model'] = save_dict['state_dict']
         if isinstance(self.model, DDP):
             missing_keys, unexpected_keys = \
-                self.model.module.load_state_dict(save_dict['model'])
+                self.model.module.load_state_dict(save_dict['model'], strict=False)
         else:
             missing_keys, unexpected_keys = \
-                self.model.load_state_dict(save_dict['model'])
+                self.model.load_state_dict(save_dict['model'], strict=False)
         if len(missing_keys) != 0:
             logger.info(f'Missing keys in source state dict: {missing_keys}')
         if len(unexpected_keys) != 0:
             logger.info(f'Unexpected keys in source state dict: {unexpected_keys}')
         
-        if self.ema_model is not None:
+        if self.ema_model is not None and 'ema_model' in save_dict:
             self.ema_model.load_state_dict(save_dict['ema_model'])
-        if self.optimizer is not None:
+        if self.optimizer is not None and 'optimizer' in save_dict:
             self.optimizer.load_state_dict(save_dict['optimizer'])
-        epoch = save_dict['epoch']
+
+        if 'epoch' in save_dict:
+            epoch = save_dict['epoch']
+        else:
+            epoch = -1
 
         '''avoid memory leak'''
         del save_dict
