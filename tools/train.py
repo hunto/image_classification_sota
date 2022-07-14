@@ -67,8 +67,8 @@ def main():
     model = build_model(args, args.model)
     logger.info(model)
     logger.info(
-        f'Model {args.model} created, params: {get_params(model)}, '
-        f'FLOPs: {get_flops(model, input_shape=args.input_shape)}')
+        f'Model {args.model} created, params: {get_params(model) / 1e6:.3f} M, '
+        f'FLOPs: {get_flops(model, input_shape=args.input_shape) / 1e9:.3f} G')
 
     # Diverse Branch Blocks
     if args.dbb:
@@ -77,8 +77,8 @@ def main():
         convert_to_dbb(model)
         logger.info(model)
         logger.info(
-            f'Converted to DBB blocks, model params: {get_params(model)}, '
-            f'FLOPs: {get_flops(model, input_shape=args.input_shape)}')
+            f'Converted to DBB blocks, model params: {get_params(model) / 1e6:.3f} M, '
+            f'FLOPs: {get_flops(model, input_shape=args.input_shape) / 1e9:.3f} G')
 
     model.cuda()
     model = DDP(model,
@@ -90,8 +90,8 @@ def main():
         # build teacher model
         teacher_model = build_model(args, args.teacher_model, args.teacher_pretrained, args.teacher_ckpt)
         logger.info(
-            f'Teacher model {args.teacher_model} created, params: {get_params(teacher_model)}, '
-            f'FLOPs: {get_flops(teacher_model, input_shape=args.input_shape)}')
+            f'Teacher model {args.teacher_model} created, params: {get_params(teacher_model) / 1e6:.3f} M, '
+            f'FLOPs: {get_flops(teacher_model, input_shape=args.input_shape) / 1e9:.3f} G')
         teacher_model.cuda()
         test_metrics = validate(args, 0, teacher_model, val_loader, val_loss_fn, log_suffix=' (teacher)')
         logger.info(f'Top-1 accuracy of teacher model {args.teacher_model}: {test_metrics["top1"]:.2f}')
@@ -147,6 +147,12 @@ def main():
     else:
         dyrep = None
 
+    '''amp'''
+    if args.amp:
+        loss_scaler = torch.cuda.amp.GradScaler()
+    else:
+        loss_scaler = None
+
     '''resume'''
     ckpt_manager = CheckpointManager(model,
                                      optimizer,
@@ -154,6 +160,7 @@ def main():
                                      save_dir=args.exp_dir,
                                      rank=args.rank,
                                      additions={
+                                         'scaler': loss_scaler,
                                          'dyrep': dyrep
                                      })
 
@@ -192,7 +199,7 @@ def main():
         # train
         metrics = train_epoch(args, epoch, model, model_ema, train_loader,
                               optimizer, loss_fn, scheduler, auxiliary_buffer,
-                              dyrep)
+                              dyrep, loss_scaler)
 
         # validate
         test_metrics = validate(args, epoch, model, val_loader, val_loss_fn)
@@ -240,7 +247,8 @@ def train_epoch(args,
                 loss_fn,
                 scheduler,
                 auxiliary_buffer=None,
-                dyrep=None):
+                dyrep=None,
+                loss_scaler=None):
     loss_m = AverageMeter(dist=True)
     data_time_m = AverageMeter(dist=True)
     batch_time_m = AverageMeter(dist=True)
@@ -266,8 +274,14 @@ def train_epoch(args,
             loss_aux = loss_fn(auxiliary_buffer.output, target)
             loss += loss_aux * auxiliary_buffer.loss_weight
 
-        loss.backward()
+        if loss_scaler is None:
+            loss.backward()
+        else:
+            # amp
+            loss_scaler.scale(loss).backward()
         if args.clip_grad_norm:
+            if loss_scaler is not None:
+                loss_scaler.unscale_(optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(),
                                            args.clip_grad_max_norm)
 
@@ -275,7 +289,12 @@ def train_epoch(args,
             # record states of model in dyrep
             dyrep.record_metrics()
             
-        optimizer.step()
+        if loss_scaler is None:
+            optimizer.step()
+        else:
+            loss_scaler.step(optimizer)
+            loss_scaler.update()
+
         if model_ema is not None:
             model_ema.update(model)
 

@@ -46,6 +46,8 @@ parser.add_argument('--clip-grad-norm', action='store_true', default=False,
                     help='clip gradients of network')
 parser.add_argument('--clip-grad-max-norm', type=float, default=5.,
                     help='value of max_norm in clip_grad_norm')
+parser.add_argument('--amp', action='store_true', default=False,
+                    help='Use automatic mixed precision training (torch.cuda.amp)')
 
 # Learning rate schedule parameters
 parser.add_argument('--sched', default='step', type=str, 
