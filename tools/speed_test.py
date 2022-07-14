@@ -49,7 +49,7 @@ def main():
             f'Converted to DBB blocks, model params: {get_params(model)}, '
             f'FLOPs: {get_flops(model, input_shape=args.input_shape)}')
 
-    speed_test(model, input_shape=args.input_shape)
+    speed_test(model, batch_size=args.batch_size, input_shape=args.input_shape)
 
 
 def speed_test(model, warmup_iters=100, n_iters=1000, batch_size=128, input_shape=(3, 224, 224), device='cuda'):
