@@ -242,7 +242,6 @@ class LightViTAttention(nn.Module):
         q, k, v = qkv.view(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4).unbind(0)
 
         # split img tokens & global tokens
-        x_glb = x[:, :, :NT]
         q_img, k_img, v_img = q[:, :, NT:], k[:, :, NT:], v[:, :, NT:]
         q_glb, _, _ = q[:, :, :NT], k[:, :, :NT], v[:, :, :NT]
 
