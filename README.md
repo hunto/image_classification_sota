@@ -82,4 +82,6 @@ image_classification_sota
     ```
 
 ## Projects based on Image Classification SOTA  
-* [DyRep](https://github.com/hunto/DyRep): Bootstrapping Training with Dynamic Re-parameterization
+* [CVPR 2022] [DyRep](https://github.com/hunto/DyRep): Bootstrapping Training with Dynamic Re-parameterization
+* [NeurIPS 2022] [DIST](https://github.com/hunto/DIST_KD): Knowledge Distillation from A Stronger Teacher
+* [LightViT](https://github.com/hunto/LightViT): Towards Light-Weight Convolution-Free Vision Transformers
