@@ -27,7 +27,10 @@ class KDLoss():
         if kd_method == 'kd':
             self.kd_loss = KLDivergence(tau=4)
         elif kd_method == 'dist':
-            self.kd_loss = DIST(beta=1, gamma=1)
+            self.kd_loss = DIST(beta=1, gamma=1, tau=1)
+        elif kd_method.startswith('dist_t'):
+            tau = float(kd_method[6:])
+            self.kd_loss = DIST(beta=1, gamma=1, tau=tau)
         elif kd_method.startswith('kdt'):
             tau = float(kd_method[3:])
             self.kd_loss = KLDivergence(tau)

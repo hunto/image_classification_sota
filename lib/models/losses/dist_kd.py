@@ -19,15 +19,16 @@ def intra_class_relation(y_s, y_t):
 
 
 class DIST(nn.Module):
-    def __init__(self, beta=1.0, gamma=1.0):
+    def __init__(self, beta=1.0, gamma=1.0, tau=1.0):
         super(DIST, self).__init__()
         self.beta = beta
         self.gamma = gamma
+        self.tau = tau
 
     def forward(self, z_s, z_t):
-        y_s = z_s.softmax(dim=1)
-        y_t = z_t.softmax(dim=1)
-        inter_loss = inter_class_relation(y_s, y_t)
-        intra_loss = intra_class_relation(y_s, y_t)
+        y_s = (z_s / self.tau).softmax(dim=1)
+        y_t = (z_t / self.tau).softmax(dim=1)
+        inter_loss = self.tau**2 * inter_class_relation(y_s, y_t)
+        intra_loss = self.tau**2 * intra_class_relation(y_s, y_t)
         kd_loss = self.beta * inter_loss + self.gamma * intra_loss
         return kd_loss

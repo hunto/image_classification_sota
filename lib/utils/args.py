@@ -70,6 +70,10 @@ parser.add_argument('--decay_by_epoch', action='store_true', default=False,
                     help='decay LR by epoch, valid only for cosine scheduler')
 
 # Augmentation & regularization parameters
+parser.add_argument('--image-mean', type=float, nargs=3, default=None,
+                    help='Mean values of image normalization')
+parser.add_argument('--image-std', type=float, nargs=3, default=None,
+                    help='Std values of image normalization')
 parser.add_argument('--interpolation', type=str, default='bilinear', choices=['bilinear', 'bicubic'],
                     help='Interpolation mode in image resize')
 parser.add_argument('--color-jitter', type=float, default=0.,
