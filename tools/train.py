@@ -38,6 +38,7 @@ def main():
     init_logger(args)
 
     # save args
+    logger.info(args)
     if args.rank == 0:
         with open(os.path.join(args.exp_dir, 'args.yaml'), 'w') as f:
             f.write(args_text)
@@ -65,7 +66,6 @@ def main():
     val_loss_fn = loss_fn
 
     model = build_model(args, args.model)
-    logger.info(model)
     logger.info(
         f'Model {args.model} created, params: {get_params(model) / 1e6:.3f} M, '
         f'FLOPs: {get_flops(model, input_shape=args.input_shape) / 1e9:.3f} G')
@@ -81,9 +81,7 @@ def main():
             f'FLOPs: {get_flops(model, input_shape=args.input_shape) / 1e9:.3f} G')
 
     model.cuda()
-    model = DDP(model,
-                device_ids=[args.local_rank],
-                find_unused_parameters=False)
+    
 
     # knowledge distillation
     if args.kd != '':
@@ -98,8 +96,14 @@ def main():
 
         # build kd loss
         from lib.models.losses.kd_loss import KDLoss
-        loss_fn = KDLoss(model, teacher_model, loss_fn, args.kd, args.student_module,
-                         args.teacher_module, args.ori_loss_weight, args.kd_loss_weight)
+        loss_fn = KDLoss(model, teacher_model, args.model, args.teacher_model, loss_fn, 
+                         args.kd, args.ori_loss_weight, args.kd_loss_weight, args.kd_loss_kwargs)
+
+    model = DDP(model,
+                device_ids=[args.local_rank],
+                find_unused_parameters=False)
+    loss_fn.student = model
+    logger.info(model)
 
     if args.model_ema:
         model_ema = ModelEMA(model, decay=args.model_ema_decay)
@@ -208,7 +212,7 @@ def main():
                                     epoch,
                                     model_ema.module,
                                     val_loader,
-                                    loss_fn,
+                                    val_loss_fn,
                                     log_suffix='(EMA)')
 
         # dyrep
@@ -264,15 +268,16 @@ def train_epoch(args,
         for p in model.parameters():
             p.grad = None
 
-        if not args.kd:
-            output = model(input)
-            loss = loss_fn(output, target)
-        else:
-            loss = loss_fn(input, target)
-
-        if auxiliary_buffer is not None:
-            loss_aux = loss_fn(auxiliary_buffer.output, target)
-            loss += loss_aux * auxiliary_buffer.loss_weight
+        with torch.cuda.amp.autocast(enabled=loss_scaler is not None):
+            if not args.kd:
+                output = model(input)
+                loss = loss_fn(output, target)
+            else:
+                loss = loss_fn(input, target)
+    
+            if auxiliary_buffer is not None:
+                loss_aux = loss_fn(auxiliary_buffer.output, target)
+                loss += loss_aux * auxiliary_buffer.loss_weight
 
         if loss_scaler is None:
             loss.backward()

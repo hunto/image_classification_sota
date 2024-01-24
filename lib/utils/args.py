@@ -2,6 +2,14 @@ import argparse
 import yaml
 
 
+class ParseKwargs(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, dict())
+        for value in values:
+            key, value = value.split('=')
+            getattr(namespace, self.dest)[key] = value
+            
+
 config_parser = argparse.ArgumentParser(description='Training Config', add_help=False)
 config_parser.add_argument('-c', '--config', default='', type=str,
                     help='YAML config file specifying default arguments')
@@ -124,9 +132,9 @@ parser.add_argument('--experiment', default='exp', type=str,
                     help='name of train experiment, name of sub-folder for output')
 parser.add_argument('--slurm', action='store_true', default=False,
                     help='Use slurm')
-parser.add_argument('--local-rank', default=0, type=int,
+parser.add_argument('--local_rank', default=0, type=int,
                     help='local rank of current process in distributed running')
-parser.add_argument('--dist-port', default='12345', type=str,
+parser.add_argument('--dist_port', default='12345', type=str,
                     help='port for distributed communication')
 
 # KD
@@ -148,6 +156,7 @@ parser.add_argument('--teacher-module', type=str, default='',
                     help='name of the teacher module used in kd. Default (""): use the output of model.')
 parser.add_argument('--student-module', type=str, default='',
                     help='name of the student module used in kd. Default (""): use the output of model.')
+parser.add_argument('--kd-loss-kwargs', nargs='*', action=ParseKwargs)
 
 # DBB
 parser.add_argument('--dbb', action='store_true', default=False,
@@ -173,14 +182,22 @@ parser.add_argument('--edgenn-config', type=str, default='',
 def parse_args():
     # Do we have a config file to parse?
     args_config, remaining = config_parser.parse_known_args()
+    default_dicts = {}
     if args_config.config:
         with open(args_config.config, 'r') as f:
             cfg = yaml.safe_load(f)
             parser.set_defaults(**cfg)
 
+            for k, v in cfg.items():
+                if isinstance(v, dict):
+                    default_dicts[k] = v
+                    
     # The main arg parser parses the rest of the args, the usual
     # defaults will have been overridden if config file specified.
     args = parser.parse_args(remaining)
+    for k, v in default_dicts.items():
+        v.update(args.__dict__[k])
+    args.__dict__[k] = v
 
     # Cache the args as a text string to save them in the output dir later
     args_text = yaml.safe_dump(args.__dict__, default_flow_style=False)

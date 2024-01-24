@@ -31,7 +31,6 @@ def init_dist(args):
             ntasks = int(os.environ['SLURM_NTASKS'])
             node_list = os.environ['SLURM_NODELIST']
             num_gpus = torch.cuda.device_count()
-            torch.cuda.set_device(proc_id % num_gpus)
             addr = subprocess.getoutput(
                 f'scontrol show hostname {node_list} | head -n1')
             os.environ['MASTER_ADDR'] = addr
@@ -40,14 +39,21 @@ def init_dist(args):
             os.environ['LOCAL_RANK'] = str(proc_id % num_gpus)
             os.environ['RANK'] = str(proc_id)
             print(f'Using slurm with master node: {addr}, rank: {proc_id}, world size: {ntasks}')
+        else:
+            addr = os.environ['MASTER_ADDR']
+            ntasks = os.environ['WORLD_SIZE']
+            proc_id = os.environ['RANK']
+            args.local_rank = int(os.environ['LOCAL_RANK'])
+            print(f'Using torch.distributed with master node: {addr}, rank: {proc_id}, local_rank: {args.local_rank} world size: {ntasks}')
 
-        os.environ['MASTER_PORT'] = args.dist_port
+
+        #os.environ['MASTER_PORT'] = args.dist_port
         args.device = 'cuda:%d' % args.local_rank
         torch.distributed.init_process_group(backend='nccl', init_method='env://')
         args.world_size = torch.distributed.get_world_size()
         args.rank = torch.distributed.get_rank()
-        if not args.slurm:
-            torch.cuda.set_device(args.rank)
+        # if not args.slurm:
+        torch.cuda.set_device(args.local_rank)
         print(f'Training in distributed model with multiple processes, 1 GPU per process. Process {args.rank}, total {args.world_size}.')
     else:
         print('Training with a single process on 1 GPU.')
