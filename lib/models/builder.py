@@ -50,6 +50,11 @@ def build_model(args, model_name, pretrained=False, pretrained_ckpt=''):
 
     elif model_name.startswith('timm_'):
         # build model using timm
+        # we import local_vim and local_vmamba here to register the models
+        if 'local_vim' in model_name:
+            from lib.models import local_vim
+        if 'local_vmamba' in model_name:
+            from lib.models import local_vmamba
         import timm
         model = timm.create_model(model_name[5:], pretrained=pretrained, drop_path_rate=args.drop_path_rate)
 
