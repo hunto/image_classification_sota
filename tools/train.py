@@ -20,6 +20,16 @@ from lib.utils.misc import accuracy, AverageMeter, \
 from lib.utils.model_ema import ModelEMA
 from lib.utils.measure import get_params, get_flops
 
+try:
+    # need `pip install nvidia-ml-py3` to measure gpu stats
+    import nvidia_smi
+    nvidia_smi.nvmlInit()
+    handle = nvidia_smi.nvmlDeviceGetHandleByIndex(0)
+    _has_nvidia_smi = True
+except ModuleNotFoundError:
+    _has_nvidia_smi = False
+
+
 torch.backends.cudnn.benchmark = True
 
 '''init logger'''
@@ -70,6 +80,9 @@ def main():
         f'Model {args.model} created, params: {get_params(model) / 1e6:.3f} M, '
         f'FLOPs: {get_flops(model, input_shape=args.input_shape) / 1e9:.3f} G')
 
+    # logger.info(
+    #     f'Model {args.model} created, params: {get_params(model) / 1e6:.3f} M')
+
     # Diverse Branch Blocks
     if args.dbb:
         # convert 3x3 convs to dbb blocks
@@ -102,7 +115,10 @@ def main():
     model = DDP(model,
                 device_ids=[args.local_rank],
                 find_unused_parameters=False)
-    loss_fn.student = model
+    from torch.distributed.algorithms.ddp_comm_hooks import default as comm_hooks
+    model.register_comm_hook(None, comm_hooks.fp16_compress_hook)
+    if args.kd != '':
+        loss_fn.student = model
     logger.info(model)
 
     if args.model_ema:
@@ -264,7 +280,7 @@ def train_epoch(args,
         data_time_m.update(data_time)
 
         # optimizer.zero_grad()
-        # use optimizer.zero_grad(set_to_none=False) for speedup
+        # use optimizer.zero_grad(set_to_none=True) for speedup
         for p in model.parameters():
             p.grad = None
 
@@ -307,18 +323,40 @@ def train_epoch(args,
         batch_time = time.time() - start_time
         batch_time_m.update(batch_time)
         if batch_idx % args.log_interval == 0 or batch_idx == len(loader) - 1:
-            logger.info('Train: {} [{:>4d}/{}] '
-                        'Loss: {loss.val:.3f} ({loss.avg:.3f}) '
-                        'LR: {lr:.3e} '
-                        'Time: {batch_time.val:.2f}s ({batch_time.avg:.2f}s) '
-                        'Data: {data_time.val:.2f}s'.format(
-                            epoch,
-                            batch_idx,
-                            len(loader),
-                            loss=loss_m,
-                            lr=optimizer.param_groups[0]['lr'],
-                            batch_time=batch_time_m,
-                            data_time=data_time_m))
+            if _has_nvidia_smi:
+                util = int(nvidia_smi.nvmlDeviceGetUtilizationRates(handle).gpu)
+                mem = nvidia_smi.nvmlDeviceGetMemoryInfo(handle).used / 1024 / 1024
+                logger.info('Train: {} [{:>4d}/{}] '
+                            'Loss: {loss.val:.3f} ({loss.avg:.3f}) '
+                            'LR: {lr:.3e} '
+                            'Mem: {memory:.0f} '
+                            'Util: {util:d}% '
+                            'Time: {batch_time.val:.2f}s ({batch_time.avg:.2f}s) '
+                            'Data: {data_time.val:.2f}s'.format(
+                                epoch,
+                                batch_idx,
+                                len(loader),
+                                loss=loss_m,
+                                lr=optimizer.param_groups[0]['lr'],
+                                util=util,
+                                memory=mem,
+                                batch_time=batch_time_m,
+                                data_time=data_time_m))
+            else:
+                logger.info('Train: {} [{:>4d}/{}] '
+                            'Loss: {loss.val:.3f} ({loss.avg:.3f}) '
+                            'LR: {lr:.3e} '
+                            'Mem: {memory:.0f} '
+                            'Time: {batch_time.val:.2f}s ({batch_time.avg:.2f}s) '
+                            'Data: {data_time.val:.2f}s'.format(
+                                epoch,
+                                batch_idx,
+                                len(loader),
+                                loss=loss_m,
+                                lr=optimizer.param_groups[0]['lr'],
+                                memory=torch.cuda.max_memory_allocated() / 1024.0 / 1024.0,
+                                batch_time=batch_time_m,
+                                data_time=data_time_m))
         scheduler.step(epoch * len(loader) + batch_idx + 1)
         start_time = time.time()
 

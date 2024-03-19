@@ -34,7 +34,7 @@ def main():
     # torch.backends.cudnn.deterministic = True
 
     '''build model'''
-    model = build_model(args)
+    model = build_model(args, args.model)
     logger.info(
         f'Model {args.model} created, params: {get_params(model)}, '
         f'FLOPs: {get_flops(model, input_shape=args.input_shape)}')

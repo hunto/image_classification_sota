@@ -1,5 +1,6 @@
 import argparse
 import yaml
+import torch
 
 
 class ParseKwargs(argparse.Action):
@@ -132,9 +133,13 @@ parser.add_argument('--experiment', default='exp', type=str,
                     help='name of train experiment, name of sub-folder for output')
 parser.add_argument('--slurm', action='store_true', default=False,
                     help='Use slurm')
-parser.add_argument('--local_rank', default=0, type=int,
-                    help='local rank of current process in distributed running')
-parser.add_argument('--dist_port', default='12345', type=str,
+if torch.__version__ >= '2.0.0':
+    parser.add_argument('--local-rank', default=0, type=int,
+                        help='local rank of current process in distributed running')
+else:
+    parser.add_argument('--local_rank', default=0, type=int,
+                        help='local rank of current process in distributed running')
+parser.add_argument('--dist-port', default='12345', type=str,
                     help='port for distributed communication')
 
 # KD

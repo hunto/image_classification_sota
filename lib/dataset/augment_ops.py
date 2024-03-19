@@ -409,7 +409,7 @@ def skew(img, v, **__):
         matrix.append([p1[0], p1[1], 1, 0, 0, 0, -p2[0] * p1[0], -p2[0] * p1[1]])
         matrix.append([0, 0, 0, p1[0], p1[1], 1, -p2[1] * p1[0], -p2[1] * p1[1]])
 
-    A = np.matrix(matrix, dtype=np.float)
+    A = np.matrix(matrix, dtype=np.float32)
     B = np.array(original_plane).reshape(8)
     perspective_skew_coefficients_matrix = np.dot(np.linalg.pinv(A), B)
     perspective_skew_coefficients_matrix = np.array(perspective_skew_coefficients_matrix).reshape(8)
